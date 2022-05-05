@@ -1,40 +1,32 @@
-# load packages ####
-library(rStrava) # devtools::install_github('fawda123/rStrava')
-library(dplyr)
-library(tidyr)
-library(purrr)
-library(ggplot2)
-library(corrr)
+library(tidyverse)
+
+# Creation des dataframes - EMA2018 / EMA2019 / EMA_total
+
+list_of_files <- list.files(path = "C:/Users/planteb/Desktop/Projet R/blogue/EMA_Open_dataset/data/raw/UT1000_ema/UT1000_fall2018",
+                            recursive = TRUE,
+                            pattern = "momentary_emas.csv$",
+                            full.names = TRUE)
+
+df_EMA_2018 <- readr::read_csv(list_of_files, id = "file_name")
 
 
-# initial setup ####
-# Strava key
-app_name <- 'RData'
-app_client_id <- '80345'
-app_secret <- '8c3db80a736e1e8008f967ef58cd087631a16ef6'
+list_of_files <- list.files(path = "C:/Users/planteb/Desktop/Projet R/blogue/EMA_Open_dataset/data/raw/UT1000_ema/UT1000_spring2019",
+                            recursive = TRUE,
+                            pattern = "momentary_emas.csv$",
+                            full.names = TRUE)
 
-# create strava token
-my_token <- httr::config(token = strava_oauth(app_name, app_client_id, app_secret, app_scope="activity:read_all"))
+df_EMA_2019 <- readr::read_csv(list_of_files, id = "file_name")
 
+df_EMA_total <- rbind(df_EMA_2018, df_EMA_2019)
 
-# get my info
+df_participant <- read_delim("C:/Users/planteb/Desktop/Projet R/blogue/EMA_Open_dataset/data/raw/participant.txt", delim = ",")
+df_participant <- rename(df_participant, pid = beiwe_id)
 
-myinfo <- get_athlete(my_token, id = '10533584')
-head(myinfo)
+df_participant_EMA <- df_participant %>% inner_join(df_EMA_total, by = "pid")
 
-# creating data frame for my data
+# Choisir le nombre de personne à conserver selon le nombre de notifications répondues
 
-my_act <- get_activity_list(my_token)
-act_df <- compile_activities(my_act, units = "metric")
-
-# dataframe with only variable of interest
-
-act_df_interest <- act_df %>% select(type, distance, start_date, moving_time, average_speed, average_heartrate)  
-
-# data visualisation 2022
-act_df_interest %>%
-  filter(type == "Run", moving_time < 50000, distance > 1) %>%
-  ggplot(aes(distance, moving_time)) +
-  geom_point()
-
-
+df_EMA_total_group <- df_EMA_total %>%
+  group_by(pid) %>%
+  filter(n() >= 50) %>%
+  ungroup()
